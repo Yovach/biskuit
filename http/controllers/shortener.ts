@@ -1,5 +1,5 @@
 /* URL Shortener feature */
-import { Router } from "https://deno.land/x/oak@v6.5.0/mod.ts";
+import { Router, Status } from "https://deno.land/x/oak@v6.5.0/mod.ts";
 import { IRouteModule } from "../../libs/routes.ts";
 import { retrieveShortenedURL } from "./shortener/helpers.ts";
 
@@ -12,20 +12,15 @@ export class ShortenerRoutes implements IRouteModule {
 
             // if URL is malformed
             if (token === undefined) {
-                context.response.status = 400;
-                context.response.body = {
-                    error: "INVALID_TOKEN",
-                };
+                context.throw(Status.BadRequest)
                 return;
             }
+
 
             // if the passed token doesn't corresponds to a shortened URL
             const data = retrieveShortenedURL(token)
             if (data === undefined) {
-                context.response.status = 404;
-                context.response.body = {
-                    error: "INVALID_OR_EXPIRED",
-                };
+                context.throw(Status.NotFound)
                 return;
             }
 
@@ -35,7 +30,16 @@ export class ShortenerRoutes implements IRouteModule {
 
         // Route for shorten an URL
         router.put('/v1/url/', (context) => {
-            console.log(context.params)
+
+            if (!context.request.hasBody) {
+                context.throw(Status.BadRequest)
+            }
+
+            const body = context.request.body();
+
+            console.log(body)
+
+            // console.log(context.request.body().value.url)
         });
     }
 }
