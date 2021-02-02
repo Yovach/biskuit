@@ -1,39 +1,41 @@
-/**
- * URL Shortener feature
-*/
-import { randomToken, URL_CHARACTERS } from "../../libs/helpers.ts";
+/* URL Shortener feature */
+import { Router } from "https://deno.land/x/oak@v6.5.0/mod.ts";
+import { IRouteModule } from "../../libs/routes.ts";
+import { retrieveShortenedURL } from "./shortener/helpers.ts";
 
-export interface ShortenedURL {
-    token: string;
-    destination: string;
-    expireAt?: Date;
-}
+export class ShortenerRoutes implements IRouteModule {
+    initRoutes(router: Router): void {
 
-const shortenedURLs: ShortenedURL[] = [];
+        // Route for redirect from shortcode
+        router.get('/v1/url/:token', (context) => {
+            const { token } = context.params;
 
-export function createShortenedURL(destination: string, expireAt?: Date): ShortenedURL {
-    let data = shortenedURLs.find((item) => item.destination === destination);
-    if (!data) {
-        data = {
-            destination,
-            expireAt,
-            token: randomToken(URL_CHARACTERS, 8),
-        }
-        shortenedURLs.push(data);
+            // if URL is malformed
+            if (token === undefined) {
+                context.response.status = 400;
+                context.response.body = {
+                    error: "INVALID_TOKEN",
+                };
+                return;
+            }
+
+            // if the passed token doesn't corresponds to a shortened URL
+            const data = retrieveShortenedURL(token)
+            if (data === undefined) {
+                context.response.status = 404;
+                context.response.body = {
+                    error: "INVALID_OR_EXPIRED",
+                };
+                return;
+            }
+
+            // if the passed token corresponds to a shortened URL, redirect to destination
+            context.response.redirect(data.destination);
+        });
+
+        // Route for shorten an URL
+        router.put('/v1/url/', (context) => {
+            console.log(context.params)
+        });
     }
-    return data;
-}
-
-export function retrieveShortenedURL(token: string): ShortenedURL | undefined {
-    const data = shortenedURLs.find((item) => {
-        if (item.token !== token) {
-            return false;
-        }
-        // if there is a expiration
-        if (item.expireAt !== undefined) {
-            return item.expireAt.getTime() > Date.now()
-        }
-        return true;
-    });
-    return data;
 }
