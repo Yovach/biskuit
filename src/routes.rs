@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use axum::{extract::Path, http::StatusCode, Json};
 use biskuit::{establish_connection, models::ShortUrl, schema::short_urls};
-use diesel::{result::Error::NotFound, ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper};
+use diesel::{
+    result::Error::{self},
+    ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper,
+};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -27,25 +30,28 @@ pub async fn get_short_url(
     let unwrapped_id = short_url_id.expect("");
 
     let conn = &mut establish_connection();
-    let short_url = short_urls::table
+
+    let result = short_urls::table
         .filter(short_urls::token.eq(unwrapped_id.to_string()))
         .select(ShortUrl::as_select())
-        .first::<ShortUrl>(conn);
-
-    match short_url {
+        .first(conn);
+    match result {
         Ok(url) => {
             return (
                 StatusCode::OK,
                 Json(GetShortUrlResponse { data: Some(url) }),
             );
         }
-        Err(NotFound) => (
-            StatusCode::NOT_FOUND,
-            Json(GetShortUrlResponse { data: None }),
-        ),
-        Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(GetShortUrlResponse { data: None }),
-        ),
+        Err(err) => match err {
+            Error::NotFound => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(GetShortUrlResponse { data: None }),
+                )
+            }
+            _ => {
+                panic!("Database error : {:?}", err);
+            }
+        },
     }
 }
