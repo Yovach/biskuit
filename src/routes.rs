@@ -4,9 +4,10 @@ use axum::{extract::Path, http::StatusCode, Json};
 use biskuit::{establish_connection, models::ShortUrl, schema::short_urls};
 use diesel::{
     result::Error::{self},
-    ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper,
+    ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
 };
-use serde::Serialize;
+use nanoid::nanoid;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct GetShortUrlResponse {
@@ -35,6 +36,54 @@ pub async fn get_short_url(
         .filter(short_urls::token.eq(unwrapped_id.to_string()))
         .select(ShortUrl::as_select())
         .first(conn);
+    match result {
+        Ok(url) => {
+            return (
+                StatusCode::OK,
+                Json(GetShortUrlResponse { data: Some(url) }),
+            );
+        }
+        Err(err) => match err {
+            Error::NotFound => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(GetShortUrlResponse { data: None }),
+                )
+            }
+            _ => {
+                panic!("Database error : {:?}", err);
+            }
+        },
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateShortUrl {
+    url: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = short_urls)]
+struct InsertShortUrl {
+    id: Option<i32>,
+    token: String,
+    url: String,
+}
+
+pub async fn create_short_url(
+    Json(payload): Json<CreateShortUrl>,
+) -> (StatusCode, Json<GetShortUrlResponse>) {
+    let url = &payload.url;
+    let new_short_url = InsertShortUrl {
+        id: None,
+        token: nanoid!(6),
+        url: url.to_string(),
+    };
+
+    let conn = &mut establish_connection();
+    let result = diesel::insert_into(short_urls::table)
+        .values(&new_short_url)
+        .get_result(conn);
     match result {
         Ok(url) => {
             return (
