@@ -8,6 +8,7 @@ use diesel::{
 };
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 #[derive(Serialize)]
 pub struct GetShortUrlResponse {
@@ -74,6 +75,15 @@ pub async fn create_short_url(
     Json(payload): Json<CreateShortUrl>,
 ) -> (StatusCode, Json<GetShortUrlResponse>) {
     let url = &payload.url;
+
+    let validation = Url::parse(url);
+    if validation.is_err() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(GetShortUrlResponse { data: None }),
+        );
+    }
+
     let new_short_url = InsertShortUrl {
         id: None,
         token: nanoid!(6),
