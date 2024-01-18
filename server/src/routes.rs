@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     env,
+    time::SystemTime,
 };
 
 use axum::{body::Body, extract::Path, http::StatusCode, response::Response, Json};
@@ -10,7 +11,7 @@ use diesel::{
     ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use hmac::{Hmac, Mac};
-use jwt::{SignWithKey, Header, AlgorithmType, Token};
+use jwt::{AlgorithmType, Header, SignWithKey, Token};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -148,21 +149,27 @@ pub async fn login(Json(payload): Json<LoginPayload>) -> Response {
             algorithm: AlgorithmType::Hs256,
             ..Default::default()
         };
+
+        let issued_at = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+
         let mut claims = BTreeMap::new();
         claims.insert("username", username);
-        
-        
+        claims.insert("iat", issued_at.as_secs().to_string());
+        claims.insert("sub", "auth".to_string());
+
         let token = Token::new(header, claims).sign_with_key(&key);
         if token.is_err() {
             println!("err: {:?}", token.err());
             return Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::from("invalid token"))
-            .unwrap();
+                .status(StatusCode::OK)
+                .body(Body::from("invalid token"))
+                .unwrap();
         }
 
-
         let token_result = token.unwrap();
+
+        println!("claims: {:?}", token_result.header());
+
         return Response::builder()
             .status(StatusCode::OK)
             .body(Body::from(token_result.as_str().to_string()))
