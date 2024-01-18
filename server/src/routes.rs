@@ -1,13 +1,19 @@
-use std::collections::HashMap;
+use std::{
+    collections::{BTreeMap, HashMap},
+    env,
+};
 
-use axum::{extract::Path, http::StatusCode, Json};
+use axum::{body::Body, extract::Path, http::StatusCode, response::Response, Json};
 use biskuit::{establish_connection, models::ShortUrl, schema::short_urls};
 use diesel::{
     result::Error::{self},
     ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
 };
+use hmac::{Hmac, Mac};
+use jwt::{SignWithKey, Header, AlgorithmType, Token};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use url::Url;
 
 #[derive(Serialize)]
@@ -113,4 +119,57 @@ pub async fn create_short_url(
             }
         },
     }
+}
+
+#[derive(Serialize)]
+pub struct LoginResponse {
+    data: u32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginPayload {
+    username: String,
+    password: String,
+}
+
+pub async fn login(Json(payload): Json<LoginPayload>) -> Response {
+    let username = payload.username;
+    let password = payload.password;
+    if username == "admin" && password == "admin" {
+        let secret_env = env::var("JWT_SECRET").expect("i expected a value here");
+        // return Response::builder()
+        //     .status(StatusCode::INTERNAL_SERVER_ERROR)
+        //     .body(Body::from("can't read env"))
+        //     .unwrap();
+
+        let key: Hmac<Sha256> = Hmac::new_from_slice(secret_env.as_bytes()).unwrap();
+
+        let header = Header {
+            algorithm: AlgorithmType::Hs256,
+            ..Default::default()
+        };
+        let mut claims = BTreeMap::new();
+        claims.insert("username", username);
+        
+        
+        let token = Token::new(header, claims).sign_with_key(&key);
+        if token.is_err() {
+            println!("err: {:?}", token.err());
+            return Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::from("invalid token"))
+            .unwrap();
+        }
+
+
+        let token_result = token.unwrap();
+        return Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::from(token_result.as_str().to_string()))
+            .unwrap();
+    }
+    return Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(Body::from("can't read env"))
+        .unwrap();
 }
