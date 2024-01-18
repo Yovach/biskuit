@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=biskuit
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+    ports:
+      - 5432:5432
+
+  adminer:
+    image: adminer:latest
+    environment:
+      ADMINER_DESIGN: pepa-linha
+    ports:
+      - 8080:8080
