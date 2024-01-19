@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     env,
-    time::{SystemTime, Duration},
+    time::{Duration, SystemTime},
 };
 
 use axum::{extract::Path, http::StatusCode, Json};
@@ -11,9 +11,10 @@ use diesel::{
     ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use hmac::{Hmac, Mac};
-use jwt::{AlgorithmType, Header, SignWithKey, Token, VerifyWithKey};
+use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token, VerifyWithKey};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use sha2::Sha256;
 use url::Url;
 
@@ -113,8 +114,8 @@ pub async fn create_short_url(
 
     let claims = jwt_data.claims();
     let subject = claims.get("sub");
-    if subject.is_none() || !subject.unwrap().eq("auth"){
-      return (
+    if subject.is_none() || !subject.unwrap().eq("auth") {
+        return (
             StatusCode::BAD_REQUEST,
             Json(GetShortUrlResponse {
                 error: Some("the subject is not valid".to_string()),
@@ -212,18 +213,23 @@ pub async fn login(Json(payload): Json<LoginPayload>) -> (StatusCode, Json<Login
             ..Default::default()
         };
 
-        let issued_at = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH);
+        let issued_at = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
         let expired_at = SystemTime::now()
             .checked_add(Duration::new(5 * 60, 0))
             .unwrap()
             .duration_since(SystemTime::UNIX_EPOCH);
 
-        let mut claims = BTreeMap::new();
-        claims.insert("username", username);
-        claims.insert("iat", issued_at.unwrap().as_secs().to_string());
-        claims.insert("exp", expired_at.unwrap().as_secs().to_string());
-        claims.insert("sub", "auth".to_string());
+        let mut claims = Claims::new(RegisteredClaims {
+            not_before: None,
+            issuer: None,
+            audience: None,
+            json_web_token_id: None,
+
+            issued_at: Some(issued_at.unwrap().as_secs()),
+            expiration: Some(expired_at.unwrap().as_secs()),
+            subject: Some("auth".to_string()),
+        });
+        claims.private.insert("username", *username);
 
         let token = Token::new(header, claims).sign_with_key(&key);
         if token.is_err() {
