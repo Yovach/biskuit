@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     env,
-    time::SystemTime,
+    time::{SystemTime, Duration},
 };
 
 use axum::{extract::Path, http::StatusCode, Json};
@@ -108,6 +108,21 @@ pub async fn create_short_url(
             }),
         );
     }
+
+    let jwt_data = verification.unwrap();
+
+    let claims = jwt_data.claims();
+    let subject = claims.get("sub");
+    if subject.is_none() || !subject.unwrap().eq("auth"){
+      return (
+            StatusCode::BAD_REQUEST,
+            Json(GetShortUrlResponse {
+                error: Some("the subject is not valid".to_string()),
+                data: None,
+            }),
+        );
+    }
+
     let url = &payload.url;
 
     let validation = Url::parse(url);
@@ -198,12 +213,16 @@ pub async fn login(Json(payload): Json<LoginPayload>) -> (StatusCode, Json<Login
         };
 
         let issued_at = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap();
+            .duration_since(SystemTime::UNIX_EPOCH);
+        let expired_at = SystemTime::now()
+            .checked_add(Duration::new(5 * 60, 0))
+            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH);
 
         let mut claims = BTreeMap::new();
         claims.insert("username", username);
-        claims.insert("iat", issued_at.as_secs().to_string());
+        claims.insert("iat", issued_at.unwrap().as_secs().to_string());
+        claims.insert("exp", expired_at.unwrap().as_secs().to_string());
         claims.insert("sub", "auth".to_string());
 
         let token = Token::new(header, claims).sign_with_key(&key);
