@@ -4,8 +4,6 @@ use axum::{
 };
 use dotenvy::dotenv;
 use tracing::info;
-use sha2::Sha256;
-use hmac::{Hmac, Mac};
 
 pub mod routes;
 
@@ -15,9 +13,6 @@ async fn main() {
 
     // initialize tracing
     tracing_subscriber::fmt::init();
-
-    let key: Hmac<Sha256> = Hmac::new_from_slice(b"some-secret").expect("I except a value here");
-    println!("{:?}", key);
 
     // build our application with a route
     let app = Router::new()

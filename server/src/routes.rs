@@ -4,23 +4,18 @@ use std::{
     time::SystemTime,
 };
 
-use axum::{body::Body, extract::Path, http::StatusCode, response::Response, Json};
+use axum::{extract::Path, http::StatusCode, Json};
 use biskuit::{establish_connection, models::ShortUrl, schema::short_urls};
 use diesel::{
     result::Error::{self},
     ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use hmac::{Hmac, Mac};
-use jwt::{AlgorithmType, Header, SignWithKey, Token};
+use jwt::{AlgorithmType, Header, SignWithKey, Token, VerifyWithKey};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use url::Url;
-
-#[derive(Serialize)]
-pub struct GetShortUrlResponse {
-    data: Option<ShortUrl>,
-}
 
 pub async fn get_short_url(
     Path(params): Path<HashMap<String, String>>,
@@ -32,7 +27,10 @@ pub async fn get_short_url(
     if short_url_id.is_none() {
         return (
             StatusCode::NOT_FOUND,
-            Json(GetShortUrlResponse { data: None }),
+            Json(GetShortUrlResponse {
+                error: Some("can't create a short url for invalid url".to_string()),
+                data: None,
+            }),
         );
     }
 
@@ -48,14 +46,20 @@ pub async fn get_short_url(
         Ok(url) => {
             return (
                 StatusCode::OK,
-                Json(GetShortUrlResponse { data: Some(url) }),
+                Json(GetShortUrlResponse {
+                    error: None,
+                    data: Some(url),
+                }),
             );
         }
         Err(err) => match err {
             Error::NotFound => {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(GetShortUrlResponse { data: None }),
+                    Json(GetShortUrlResponse {
+                        error: Some("I was not able to create your shortened url".to_string()),
+                        data: None,
+                    }),
                 )
             }
             _ => {
@@ -68,6 +72,8 @@ pub async fn get_short_url(
 #[derive(Debug, Deserialize)]
 pub struct CreateShortUrl {
     url: String,
+
+    jwt: String,
 }
 
 #[derive(Insertable)]
@@ -78,16 +84,40 @@ struct InsertShortUrl {
     url: String,
 }
 
+#[derive(Serialize)]
+pub struct GetShortUrlResponse {
+    data: Option<ShortUrl>,
+    error: Option<String>,
+}
+
 pub async fn create_short_url(
     Json(payload): Json<CreateShortUrl>,
 ) -> (StatusCode, Json<GetShortUrlResponse>) {
+    let jwt = &payload.jwt;
+
+    let secret_env = env::var("JWT_SECRET").expect("i expected a value here");
+    let key: Hmac<Sha256> = Hmac::new_from_slice(secret_env.as_bytes()).unwrap();
+    let verification: Result<Token<Header, BTreeMap<String, String>, _>, _> =
+        jwt.verify_with_key(&key);
+    if verification.is_err() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(GetShortUrlResponse {
+                error: Some("invalid token".to_string()),
+                data: None,
+            }),
+        );
+    }
     let url = &payload.url;
 
     let validation = Url::parse(url);
     if validation.is_err() {
         return (
             StatusCode::BAD_REQUEST,
-            Json(GetShortUrlResponse { data: None }),
+            Json(GetShortUrlResponse {
+                error: Some("can't parse URL".to_string()),
+                data: None,
+            }),
         );
     }
 
@@ -105,15 +135,21 @@ pub async fn create_short_url(
         Ok(url) => {
             return (
                 StatusCode::OK,
-                Json(GetShortUrlResponse { data: Some(url) }),
+                Json(GetShortUrlResponse {
+                    error: None,
+                    data: Some(url),
+                }),
             );
         }
         Err(err) => match err {
             Error::NotFound => {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(GetShortUrlResponse { data: None }),
-                )
+                    Json(GetShortUrlResponse {
+                        error: Some("i wasn't able to insert your short url".to_string()),
+                        data: None,
+                    }),
+                );
             }
             _ => {
                 panic!("Database error : {:?}", err);
@@ -123,8 +159,8 @@ pub async fn create_short_url(
 }
 
 #[derive(Serialize)]
-pub struct LoginResponse {
-    data: u32,
+pub struct LoginSuccessData {
+    jwt: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -133,7 +169,18 @@ pub struct LoginPayload {
     password: String,
 }
 
-pub async fn login(Json(payload): Json<LoginPayload>) -> Response {
+#[derive(Serialize)]
+pub struct LoginResponseError {
+    error: String,
+}
+
+#[derive(Serialize)]
+pub struct LoginDataResponse {
+    data: Option<LoginSuccessData>,
+    error: Option<String>,
+}
+
+pub async fn login(Json(payload): Json<LoginPayload>) -> (StatusCode, Json<LoginDataResponse>) {
     let username = payload.username;
     let password = payload.password;
     if username == "admin" && password == "admin" {
@@ -150,7 +197,9 @@ pub async fn login(Json(payload): Json<LoginPayload>) -> Response {
             ..Default::default()
         };
 
-        let issued_at = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+        let issued_at = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
 
         let mut claims = BTreeMap::new();
         claims.insert("username", username);
@@ -160,23 +209,34 @@ pub async fn login(Json(payload): Json<LoginPayload>) -> Response {
         let token = Token::new(header, claims).sign_with_key(&key);
         if token.is_err() {
             println!("err: {:?}", token.err());
-            return Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::from("invalid token"))
-                .unwrap();
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(LoginDataResponse {
+                    error: Some("invalid token".to_string()),
+                    data: None,
+                }),
+            );
         }
 
         let token_result = token.unwrap();
-
         println!("claims: {:?}", token_result.header());
 
-        return Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::from(token_result.as_str().to_string()))
-            .unwrap();
+        return (
+            StatusCode::OK,
+            Json(LoginDataResponse {
+                error: None,
+                data: Some(LoginSuccessData {
+                    jwt: token_result.as_str().to_string(),
+                }),
+            }),
+        );
     }
-    return Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::from("can't read env"))
-        .unwrap();
+
+    return (
+        StatusCode::BAD_REQUEST,
+        Json(LoginDataResponse {
+            error: Some("An error has been occured".to_string()),
+            data: None,
+        }),
+    );
 }
