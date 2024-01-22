@@ -14,7 +14,7 @@ use hmac::{Hmac, Mac};
 use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token, VerifyWithKey};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use sha2::Sha256;
 use url::Url;
 
@@ -229,7 +229,9 @@ pub async fn login(Json(payload): Json<LoginPayload>) -> (StatusCode, Json<Login
             expiration: Some(expired_at.unwrap().as_secs()),
             subject: Some("auth".to_string()),
         });
-        claims.private.insert("username", *username);
+        claims
+            .private
+            .insert("username".to_string(), Value::String(username));
 
         let token = Token::new(header, claims).sign_with_key(&key);
         if token.is_err() {
