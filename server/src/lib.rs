@@ -1,11 +1,10 @@
-use std::{collections::BTreeMap, env};
-
 use diesel::{pg::PgConnection, Connection};
 use dotenvy::dotenv;
 use hmac::{Hmac, Mac};
 use jwt::{Header, Token, VerifyWithKey};
 use serde_json::Value;
 use sha2::Sha256;
+use std::{collections::BTreeMap, env, time::SystemTime};
 
 pub mod models;
 pub mod schema;
@@ -35,9 +34,24 @@ pub fn is_jwt_valid(jwt: &String, sub: &String) -> Option<String> {
         return Some("the subject is not valid".to_string());
     }
 
-    let expiration = claims.get("exp");
-    if expiration.is_none() || !expiration.unwrap().is_number() {
+    let exp = claims.get("exp");
+    if exp.is_none() {
         return Some("the expiration is not valid".to_string());
     }
+
+    let expiration = exp.unwrap().as_u64();
+    if expiration.is_none() {
+        return Some("the expiration is not valid".to_string());
+    }
+
+    let exp_val = expiration.unwrap();
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    if exp_val.lt(&now) {
+        return Some("the token is expired".to_string());
+    }
+
     return None;
 }
