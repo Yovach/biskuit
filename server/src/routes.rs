@@ -14,7 +14,7 @@ use hmac::{Hmac, Mac};
 use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value};
 use sha2::Sha256;
 use url::Url;
 
@@ -96,11 +96,12 @@ pub async fn create_short_url(
 ) -> (StatusCode, Json<GetShortUrlResponse>) {
     let jwt = &payload.jwt;
     let verification = is_jwt_valid(jwt, &"auth".to_string());
-    if verification.is_some() {
+
+    if let Err(error_code) = verification {
         return (
             StatusCode::BAD_REQUEST,
             Json(GetShortUrlResponse {
-                error: verification,
+                error: Some(error_code.to_string()),
                 data: None,
             }),
         );
