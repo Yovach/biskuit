@@ -16,42 +16,53 @@ pub fn establish_connection() -> PgConnection {
     PgConnection::establish(&db_url).unwrap_or_else(|_| panic!("Error connecting to {}", db_url))
 }
 
-pub fn is_jwt_valid(jwt: &String, sub: &String) -> Option<String> {
+pub enum JwtErrorCode {
+    InvalidKey,
+    InvalidSubject,
+    InvalidExpiration,
+    Expired,
+}
+
+pub fn is_jwt_valid(jwt: &String, sub: &String) -> Result<(), JwtErrorCode> {
     let secret_env = env::var("JWT_SECRET").expect("i expected a value here");
     let key: Hmac<Sha256> = Hmac::new_from_slice(secret_env.as_bytes()).unwrap();
     let verification: Result<Token<Header, BTreeMap<String, Value>, _>, _> =
         jwt.verify_with_key(&key);
-    if verification.is_err() {
-        return Some("invalid token".to_string());
+
+    if let Err(_e) = verification {
+        return Err(JwtErrorCode::InvalidKey);
     }
 
     let jwt_data = verification.unwrap();
     let claims = jwt_data.claims();
 
-    // here, we check the subject
+    // retrieve sub value from JWT claims
     let subject = claims.get("sub");
-    if subject.is_none() || !subject.unwrap().eq(sub) {
-        return Some("the subject is not valid".to_string());
+    if let Some(value) = subject {
+        // check if sub value is correct
+        if !sub.eq(value) {
+            return Err(JwtErrorCode::InvalidSubject);
+        }
+    } else {
+        return Err(JwtErrorCode::InvalidSubject);
     }
 
     let exp = claims.get("exp");
-    if exp.is_none() {
-        return Some("the expiration is not valid".to_string());
+    if let Some(expiration) = exp {
+        if let Some(exp_val) = expiration.as_u64() {
+            let now = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            if exp_val.lt(&now) {
+                return Err(JwtErrorCode::Expired);
+            }
+        } else {
+            return Err(JwtErrorCode::InvalidExpiration);
+        }
+    } else {
+        return Err(JwtErrorCode::InvalidExpiration);
     }
 
-    let expiration = exp.unwrap().as_u64();
-    if expiration.is_none() {
-        return Some("the expiration is not valid".to_string());
-    }
-
-    let exp_val = expiration.unwrap();
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    if exp_val.lt(&now) {
-        return Some("the token is expired".to_string());
-    }
-
-    return None;
+    return Ok(());
 }
