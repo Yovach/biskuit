@@ -98,9 +98,10 @@ pub async fn create_short_url(
 
     let secret_env = env::var("JWT_SECRET").expect("i expected a value here");
     let key: Hmac<Sha256> = Hmac::new_from_slice(secret_env.as_bytes()).unwrap();
-    let verification: Result<Token<Header, BTreeMap<String, String>, _>, _> =
+    let verification: Result<Token<Header, BTreeMap<String, Value>, _>, _> =
         jwt.verify_with_key(&key);
     if verification.is_err() {
+        println!("err: {:?}", verification.err());
         return (
             StatusCode::BAD_REQUEST,
             Json(GetShortUrlResponse {
@@ -111,14 +112,26 @@ pub async fn create_short_url(
     }
 
     let jwt_data = verification.unwrap();
-
     let claims = jwt_data.claims();
     let subject = claims.get("sub");
+   
+    // here, we check the subject
     if subject.is_none() || !subject.unwrap().eq("auth") {
         return (
             StatusCode::BAD_REQUEST,
             Json(GetShortUrlResponse {
                 error: Some("the subject is not valid".to_string()),
+                data: None,
+            }),
+        );
+    }
+
+    let expiration = claims.get("exp");
+    if expiration.is_none() || !expiration.unwrap().is_number() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(GetShortUrlResponse {
+                error: Some("the expiration is not valid".to_string()),
                 data: None,
             }),
         );
