@@ -1,17 +1,17 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     env,
     time::{Duration, SystemTime},
 };
 
 use axum::{extract::Path, http::StatusCode, Json};
-use biskuit::{establish_connection, models::ShortUrl, schema::short_urls};
+use biskuit::{establish_connection, is_jwt_valid, models::ShortUrl, schema::short_urls};
 use diesel::{
     result::Error::{self},
     ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use hmac::{Hmac, Mac};
-use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token, VerifyWithKey};
+use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -95,43 +95,12 @@ pub async fn create_short_url(
     Json(payload): Json<CreateShortUrl>,
 ) -> (StatusCode, Json<GetShortUrlResponse>) {
     let jwt = &payload.jwt;
-
-    let secret_env = env::var("JWT_SECRET").expect("i expected a value here");
-    let key: Hmac<Sha256> = Hmac::new_from_slice(secret_env.as_bytes()).unwrap();
-    let verification: Result<Token<Header, BTreeMap<String, Value>, _>, _> =
-        jwt.verify_with_key(&key);
-    if verification.is_err() {
-        println!("err: {:?}", verification.err());
+    let verification = is_jwt_valid(jwt, &"auth".to_string());
+    if verification.is_some() {
         return (
             StatusCode::BAD_REQUEST,
             Json(GetShortUrlResponse {
-                error: Some("invalid token".to_string()),
-                data: None,
-            }),
-        );
-    }
-
-    let jwt_data = verification.unwrap();
-    let claims = jwt_data.claims();
-    let subject = claims.get("sub");
-   
-    // here, we check the subject
-    if subject.is_none() || !subject.unwrap().eq("auth") {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(GetShortUrlResponse {
-                error: Some("the subject is not valid".to_string()),
-                data: None,
-            }),
-        );
-    }
-
-    let expiration = claims.get("exp");
-    if expiration.is_none() || !expiration.unwrap().is_number() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(GetShortUrlResponse {
-                error: Some("the expiration is not valid".to_string()),
+                error: verification,
                 data: None,
             }),
         );
