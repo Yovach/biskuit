@@ -28,7 +28,6 @@ export function LoginForm() {
       }),
 
       // DO NOT THIS
-      mode: "no-cors",
     });
     const res = await req.json();
     console.log(req, res);
