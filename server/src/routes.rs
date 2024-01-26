@@ -14,7 +14,7 @@ use hmac::{Hmac, Mac};
 use jwt::{AlgorithmType, Claims, Header, RegisteredClaims, SignWithKey, Token};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value};
+use serde_json::Value;
 use sha2::Sha256;
 use url::Url;
 
