@@ -245,7 +245,7 @@ pub async fn login(Json(payload): Json<LoginPayload>) -> (StatusCode, Json<Login
     return (
         StatusCode::BAD_REQUEST,
         Json(LoginDataResponse {
-            error: Some("An error has been occured".to_string()),
+            error: Some("Invalid password".to_string()),
             data: None,
         }),
     );
