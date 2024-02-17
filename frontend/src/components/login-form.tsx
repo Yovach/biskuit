@@ -17,7 +17,7 @@ export function LoginForm() {
 
     console.log(e.currentTarget);
 
-    const req = await fetch("http://192.168.1.76:3000/login/", {
+    const req = await fetch(import.meta.env.VITE_LOGIN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -26,8 +26,6 @@ export function LoginForm() {
         username: data.get("username"),
         password: data.get("password"),
       }),
-
-      // DO NOT THIS
     });
     const res = await req.json();
     console.log(req, res);
