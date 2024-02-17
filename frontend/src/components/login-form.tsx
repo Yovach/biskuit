@@ -9,7 +9,8 @@ type FormEvent = Event & {
   target: Element;
 }
 
-export function LoginForm() {
+type Props = { onLogin: (jwt: string) => void }
+export function LoginForm({ onLogin }: Props) {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -28,7 +29,11 @@ export function LoginForm() {
       }),
     });
     const res = await req.json();
-    console.log(req, res);
+    console.log(res);
+    if (res.data?.jwt) {
+      console.log("ici");
+      onLogin(res.data?.jwt);
+    }
   };
 
 
