@@ -9,23 +9,21 @@ type FormEvent = Event & {
   target: Element;
 }
 
-type Props = { onLogin: (jwt: string) => void }
-export function LoginForm({ onLogin }: Props) {
+type Props = { jwt: string }
+export function CreateShortUrlForm({ jwt }: Props) {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     const data = new FormData(e.currentTarget);
 
-    console.log(e.currentTarget);
-
-    const req = await fetch(import.meta.env.VITE_LOGIN_URL, {
+    const req = await fetch(import.meta.env.VITE_CREATE_SHORT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        username: data.get("username"),
-        password: data.get("password"),
+        url: data.get('url'),
+        jwt,
       }),
     });
     const res = await req.json();
@@ -37,12 +35,8 @@ export function LoginForm({ onLogin }: Props) {
   return (
     <form onSubmit={onSubmit} class={vstack({ gap: "6", padding: "4", backgroundColor: "slate.900", borderRadius: "8" })}>
       <VStack gap="2">
-        <label class={css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" })}>Login</label>
-        <input name="username" type="text" />
-      </VStack>
-      <VStack gap="2">
-        <label class={css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" })}>Password</label>
-        <input name="password" type="password" />
+        <label class={css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" })}>URL à shortener</label>
+        <input name="url" type="url" />
       </VStack>
       <button class={css({ backgroundColor: "purple.500", px: "4", py: "1.5", color: "purple.100", borderRadius: "lg", fontWeight: "semibold" })}>
         Envoyer

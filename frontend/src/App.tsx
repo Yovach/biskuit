@@ -2,6 +2,7 @@ import { createSignal, type Component, Match, Switch } from 'solid-js';
 import { vstack } from '../styled-system/patterns';
 import { css } from '../styled-system/css';
 import { LoginForm } from './components/login-form';
+import { CreateShortUrlForm } from './components/create-short-url-form';
 
 const App: Component = () => {
   const [jwt, setJwt] = createSignal<string | null>(null);
@@ -10,7 +11,7 @@ const App: Component = () => {
     <div class={vstack({ gap: 4, backgroundColor: "slate.950", minH: "100vh", })}>
       <Switch>
         <Match when={jwt() !== null}>
-
+          <CreateShortUrlForm jwt={jwt()} />
         </Match>
 
         <Match when={jwt() === null}>
