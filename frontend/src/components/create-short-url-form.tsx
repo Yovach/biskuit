@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { Accessor, createSignal } from "solid-js";
 import { css } from "../../styled-system/css";
 import { VStack } from "../../styled-system/jsx";
 import { vstack } from "../../styled-system/patterns";
@@ -8,6 +8,29 @@ type FormEvent = Event & {
 } & {
   currentTarget: HTMLFormElement;
   target: Element;
+}
+
+type BlockProps = {
+  error: string;
+  shortUrl: string;
+  longUrl: string;
+};
+function BlockShortUrlResponse({ error, shortUrl, longUrl }: BlockProps) {
+  if (error) {
+    return (
+      <div class={css({ color: "slate.200" })}>
+        <p>Une erreur est survenue lors de la demande de création d'une URL raccourcie !</p>
+        <span>{error}</span>
+      </div>
+    );
+  }
+
+  return (
+    <p class={css({ color: "slate.200" })}>
+      Voici ton URL raccourcie :
+      <a class={css({ color: "blue.400" })} href={shortUrl}>{longUrl}</a>
+    </p>
+  )
 }
 
 type Props = { jwt: string }
@@ -29,7 +52,7 @@ export function CreateShortUrlForm({ jwt }: Props) {
       },
       body: JSON.stringify({
         url: data.get('url'),
-        jwt: jwt,
+        jwt,
       }),
     });
     const res = await req.json();
@@ -50,15 +73,7 @@ export function CreateShortUrlForm({ jwt }: Props) {
       <button class={css({ backgroundColor: "purple.500", px: "4", py: "1.5", color: "purple.100", borderRadius: "lg", fontWeight: "semibold" })}>
         Envoyer
       </button>
-      {
-        error() ? (
-          <span class={css({ color: "red.500" })}>{error()}</span>
-        ) : shortUrl() && (
-          <p class={css({ color: "slate.200" })}>
-            Voici ton URL raccourcie : <a class={css({ color: "blue.400" })} href={shortUrl()}>{longUrl()}</a>
-          </p>
-        )
-      }
+      <BlockShortUrlResponse error={error()} longUrl={longUrl()} shortUrl={shortUrl()} />
     </form>
   );
 }
