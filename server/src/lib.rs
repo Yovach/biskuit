@@ -1,7 +1,6 @@
 use diesel::{pg::PgConnection, Connection};
 use diesel::{
-    result::Error::{self},
-    ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
+    QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use dotenvy::dotenv;
 use hmac::{Hmac, Mac};
@@ -35,7 +34,20 @@ pub fn is_database_updated() -> bool {
     let result = short_urls::table
         .select(ShortUrl::as_select())
         .first(conn);
-    return result.is_ok() 
+
+    if result.is_ok() {
+        return true;
+    } else if let Err(error) = result {
+        return match error {
+          diesel::result::Error::DatabaseError(, )
+          _ => true,
+        }
+        println!("{:?}", error);
+    }
+    return match result {
+        Ok(_) => true,
+        Err(error) => match error
+    }
 }
 
 #[derive(Serialize)]
