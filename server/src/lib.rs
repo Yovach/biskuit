@@ -35,18 +35,12 @@ pub fn is_database_updated() -> bool {
         .select(ShortUrl::as_select())
         .first(conn);
 
-    if result.is_ok() {
-        return true;
-    } else if let Err(error) = result {
-        return match error {
-          diesel::result::Error::DatabaseError(, )
-          _ => true,
-        }
-        println!("{:?}", error);
-    }
     return match result {
         Ok(_) => true,
-        Err(error) => match error
+        Err(error) => match error {
+            diesel::result::Error::NotFound => true,
+            _ => false,
+        }
     }
 }
 
