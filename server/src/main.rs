@@ -3,6 +3,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use biskuit::is_database_updated;
 use dotenvy::dotenv;
 use tower_http::cors::CorsLayer;
 use tracing::info;
@@ -12,6 +13,10 @@ pub mod routes;
 #[tokio::main]
 async fn main() {
     dotenv().ok();
+
+    if !is_database_updated() {
+        panic!("Database is not up. Please execute migrations before continue")
+    }
 
     // initialize tracing
     tracing_subscriber::fmt::init();

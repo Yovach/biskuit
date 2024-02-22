@@ -1,7 +1,13 @@
 use diesel::{pg::PgConnection, Connection};
+use diesel::{
+    result::Error::{self},
+    ExpressionMethods, Insertable, QueryDsl, RunQueryDsl, SelectableHelper,
+};
 use dotenvy::dotenv;
 use hmac::{Hmac, Mac};
 use jwt::{Header, Token, VerifyWithKey};
+use models::ShortUrl;
+use schema::short_urls;
 use serde::Serialize;
 use serde_json::Value;
 use sha2::Sha256;
@@ -20,6 +26,16 @@ pub fn establish_connection() -> PgConnection {
 
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     PgConnection::establish(&db_url).unwrap_or_else(|_| panic!("Error connecting to {}", db_url))
+}
+
+pub fn is_database_updated() -> bool {
+    // execute db query
+    let conn = &mut establish_connection();
+
+    let result = short_urls::table
+        .select(ShortUrl::as_select())
+        .first(conn);
+    return result.is_ok() 
 }
 
 #[derive(Serialize)]
