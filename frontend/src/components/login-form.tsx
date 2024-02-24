@@ -1,6 +1,7 @@
-import { css } from "../../styled-system/css";
+import { css, cx } from "../../styled-system/css";
 import { VStack } from "../../styled-system/jsx";
 import { vstack } from "../../styled-system/patterns";
+import { inputStyles, labelStyles } from "./common/input";
 
 type FormEvent = Event & {
   submitter: HTMLElement;
@@ -35,16 +36,29 @@ export function LoginForm({ onLogin }: Props) {
   };
 
   return (
-    <form onSubmit={onSubmit} class={vstack({ gap: "6", padding: "4", backgroundColor: "slate.900", borderRadius: "8" })}>
-      <VStack gap="2">
-        <label class={css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" })}>Login</label>
-        <input name="username" type="text" />
+    <form onSubmit={onSubmit} class={vstack({
+      gap: "6",
+      padding: "4",
+      bg: { base: "slate.100", _osDark: "slate.900" },
+      borderRadius: "xl"
+    })}>
+      <VStack gap="0.5">
+        <label class={cx(labelStyles, css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" }))}>Login</label>
+        <input class={inputStyles} name="username" type="text" />
       </VStack>
-      <VStack gap="2">
-        <label class={css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" })}>Password</label>
-        <input name="password" type="password" />
+      <VStack gap="0.5">
+        <label class={cx(labelStyles, css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" }))}>Password</label>
+        <input class={inputStyles} name="password" type="password" />
       </VStack>
-      <button class={css({ backgroundColor: "purple.500", px: "4", py: "1.5", color: "purple.100", borderRadius: "lg", fontWeight: "semibold" })}>
+      <button class={css({
+        backgroundColor: "blue.500",
+        alignSelf: "flex-end",
+        px: "3",
+        py: "1.5",
+        color: "blue.100",
+        borderRadius: "lg",
+        fontWeight: "semibold",
+      })}>
         Envoyer
       </button>
     </form>
