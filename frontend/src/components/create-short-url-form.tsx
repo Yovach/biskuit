@@ -1,4 +1,4 @@
-import { Accessor, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { css } from "../../styled-system/css";
 import { VStack } from "../../styled-system/jsx";
 import { vstack } from "../../styled-system/patterns";
