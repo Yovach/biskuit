@@ -1,6 +1,7 @@
 import { css, cx } from "../../styled-system/css";
 import { VStack } from "../../styled-system/jsx";
 import { vstack } from "../../styled-system/patterns";
+import { buttonStyles } from "./common/button";
 import { inputStyles, labelStyles } from "./common/input";
 
 type FormEvent = Event & {
@@ -42,23 +43,15 @@ export function LoginForm({ onLogin }: Props) {
       bg: { base: "slate.100", _osDark: "slate.900" },
       borderRadius: "xl"
     })}>
-      <VStack gap="0.5">
+      <VStack gap="1">
         <label class={cx(labelStyles, css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" }))}>Login</label>
         <input class={inputStyles} name="username" type="text" />
       </VStack>
-      <VStack gap="0.5">
+      <VStack gap="1">
         <label class={cx(labelStyles, css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" }))}>Password</label>
         <input class={inputStyles} name="password" type="password" />
       </VStack>
-      <button class={css({
-        backgroundColor: "blue.500",
-        alignSelf: "flex-end",
-        px: "3",
-        py: "1.5",
-        color: "blue.100",
-        borderRadius: "lg",
-        fontWeight: "semibold",
-      })}>
+      <button class={buttonStyles}>
         Envoyer
       </button>
     </form>

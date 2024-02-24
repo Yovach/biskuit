@@ -1,7 +1,9 @@
 import { createSignal } from "solid-js";
-import { css } from "../../styled-system/css";
+import { css, cx } from "../../styled-system/css";
 import { VStack } from "../../styled-system/jsx";
 import { vstack } from "../../styled-system/patterns";
+import { inputStyles, labelStyles } from "./common/input";
+import { buttonStyles } from "./common/button";
 
 type FormEvent = Event & {
   submitter: HTMLElement;
@@ -67,10 +69,10 @@ export function CreateShortUrlForm({ jwt }: Props) {
   return (
     <form onSubmit={onSubmit} class={vstack({ gap: "6", padding: "4", backgroundColor: "slate.900", borderRadius: "8" })}>
       <VStack gap="2">
-        <label class={css({ color: "slate.200", fontWeight: "medium", alignSelf: "flex-start" })}>URL à shortener</label>
-        <input name="url" type="url" />
+        <label class={cx(labelStyles, css({ alignSelf: "flex-start" }))}>URL à shortener</label>
+        <input class={inputStyles} name="url" type="url" />
       </VStack>
-      <button class={css({ backgroundColor: "purple.500", px: "4", py: "1.5", color: "purple.100", borderRadius: "lg", fontWeight: "semibold" })}>
+      <button class={buttonStyles}>
         Envoyer
       </button>
       <BlockShortUrlResponse error={error()} longUrl={longUrl()} shortUrl={shortUrl()} />
