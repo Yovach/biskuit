@@ -13,16 +13,17 @@ const App: Component = () => {
         base: "slate.50",
         _osDark: "slate.950",
       }}
+      fontFamily="inter"
       minH={"100vh"}
     >
       <Switch>
-        <Match when={jwt() !== null}>
-          <CreateShortUrlForm jwt={jwt() as string} />
-        </Match>
-
         <Match when={jwt() === null}>
           <span class={css({ fontWeight: "bold", fontSize: "xl", color: 'slate.300', mt: "8" })}>Login</span>
           <LoginForm onLogin={setJwt} />
+        </Match>
+
+        <Match when={jwt() !== null}>
+          <CreateShortUrlForm jwt={jwt() as string} />
         </Match>
       </Switch>
     </VStack>
